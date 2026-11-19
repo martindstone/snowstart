@@ -24,7 +24,7 @@ export default function SetupView() {
         <Text size="sm" c="dimmed">
           {readiness?.allOk
             ? "This instance is set up. Open a card to review or change it."
-            : "Work down the list. Each step unlocks when the one before it is done."}
+            : "Work down the list. Each step unlocks when the one before it is done, and the other tabs unlock when setup is complete."}
         </Text>
         <Button variant="default" size="compact-sm" leftSection={<IconRefresh size={14} />} loading={status === "loading"} onClick={() => void refresh()}>
           Re-check

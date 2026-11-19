@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Badge, Button, Checkbox, Group, ScrollArea, Stack, Table, Text } from "@mantine/core";
+import { Alert, Badge, Button, Checkbox, Group, Loader, ScrollArea, Stack, Table, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import Section from "../components/Section";
 import { SNApiError, createRecord, updateRecord } from "../api/servicenow";
@@ -28,7 +28,7 @@ export default function LinkUsersSection() {
   const defaultPdUserId = useAppStore((s) => s.defaultPdUserId);
 
   // Every PagerDuty user gets a row except the default user, which belongs to the integration user and is linked
-  // in Step 6 (the directory snapshot can predate that, so it's excluded here rather than trusted to be current).
+  // in Setup (the directory snapshot can predate that, so it's excluded here rather than trusted to be current).
   // ServiceNow-only users have nothing to link.
   const rows = useMemo(
     () =>
@@ -140,29 +140,47 @@ export default function LinkUsersSection() {
   const pendingCount = actionableRows.filter((r) => selected.has(r.match.email)).length;
   const loadingUsers = directoryStatus === "loading" || directoryStatus === "idle";
 
-  const renderStatus = (email: string, kind: Kind) => {
-    const status = statuses[email] ?? "idle";
-    if (status === "linking") return <Badge color="blue">linking…</Badge>;
-    if (status === "error") return <Badge color="red">failed</Badge>;
-    if (kind === "linked") return <Badge color="green">linked</Badge>;
+  // What the row is now.
+  const renderStatus = (kind: Kind) => {
+    if (kind === "linked") return <Badge color="green" variant="light">linked</Badge>;
+    if (kind === "link") {
+      return (
+        <Badge color="teal" variant="light" title="A ServiceNow user with this email exists but isn't linked yet">
+          matched
+        </Badge>
+      );
+    }
     if (kind === "conflict") {
       return (
-        <Badge color="orange" title="This ServiceNow user already holds a different PagerDuty ID, so it won't be changed here">
+        <Badge color="orange" variant="light" title="This ServiceNow user already holds a different PagerDuty ID, so it won't be changed here">
           id mismatch
         </Badge>
       );
     }
-    return (
-      <Text size="sm" c="dimmed">
-        {kind === "create" ? "no ServiceNow user — will create" : "matched by email — will link"}
-      </Text>
+    return <Text c="dimmed">—</Text>;
+  };
+
+  // What applying will do to the row; empty until it's checked.
+  const renderAction = (email: string, kind: Kind) => {
+    const status = statuses[email] ?? "idle";
+    if (status === "linking") return <Badge color="blue">{kind === "create" ? "creating…" : "linking…"}</Badge>;
+    if (status === "error") return <Badge color="red">failed</Badge>;
+    if (!actionable(kind) || !selected.has(email)) return null;
+    return kind === "create" ? (
+      <Badge color="grape" title="A ServiceNow user will be created for this PagerDuty user">
+        create
+      </Badge>
+    ) : (
+      <Badge color="blue" title="The existing ServiceNow user will be linked to this PagerDuty user">
+        link
+      </Badge>
     );
   };
 
   return (
     <Section
       title="Link PagerDuty users to ServiceNow"
-      description="Users are pulled from both systems and matched by email. Link a matched ServiceNow user by storing its PagerDuty ID, or create a ServiceNow user for a PagerDuty user that has none. Skipping is fine."
+      description="PagerDuty and ServiceNow users are matched by email. Check a row to link the ServiceNow user to its PagerDuty user, or to create a ServiceNow user when there isn't one."
     >
       <Stack>
         <Group>
@@ -190,7 +208,7 @@ export default function LinkUsersSection() {
 
         {directoryStatus === "loaded" && defaultPdUser && (
           <Text size="xs" c="dimmed">
-            {defaultPdUser.name} is the default user, linked to the ServiceNow integration user in the previous steps, so it isn't listed.
+            {defaultPdUser.name} is the default user, linked to the ServiceNow integration user in Setup, so it isn't listed.
           </Text>
         )}
 
@@ -216,8 +234,10 @@ export default function LinkUsersSection() {
                 {matchedSelected ? "Deselect" : "Select"} matched ({matchedRows.length})
               </Button>
               {pendingCount > 0 && (
-                <Text size="sm" c="yellow.7">
-                  {pendingCount} row{pendingCount === 1 ? "" : "s"} checked but not applied yet
+                <Text size="sm" c={linking ? "blue.7" : "yellow.7"}>
+                  {linking
+                    ? "Applying…"
+                    : `${pendingCount} row${pendingCount === 1 ? "" : "s"} checked but not applied yet`}
                 </Text>
               )}
             </Group>
@@ -238,6 +258,7 @@ export default function LinkUsersSection() {
                     <Table.Th>Email</Table.Th>
                     <Table.Th>ServiceNow user</Table.Th>
                     <Table.Th>Status</Table.Th>
+                    <Table.Th>Action</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -255,7 +276,8 @@ export default function LinkUsersSection() {
                         <Table.Td>{m.pdUser?.name}</Table.Td>
                         <Table.Td>{m.email}</Table.Td>
                         <Table.Td>{m.snUser ? m.snUser.name || m.snUser.user_name : <Text c="dimmed">—</Text>}</Table.Td>
-                        <Table.Td>{renderStatus(m.email, kind)}</Table.Td>
+                        <Table.Td>{renderStatus(kind)}</Table.Td>
+                        <Table.Td>{renderAction(m.email, kind)}</Table.Td>
                       </Table.Tr>
                     );
                   })}
@@ -265,12 +287,17 @@ export default function LinkUsersSection() {
           </>
         )}
 
-        {pendingCount > 0 && (
-          <Alert color="yellow" icon={<IconAlertTriangle size={16} />} title="Unapplied changes">
-            You've checked {pendingCount} user{pendingCount === 1 ? "" : "s"} that {pendingCount === 1 ? "hasn't" : "haven't"} been
-            applied yet. Click "Apply selected" (or uncheck {pendingCount === 1 ? "it" : "them"}) before moving on.
-          </Alert>
-        )}
+        {pendingCount > 0 &&
+          (linking ? (
+            <Alert color="blue" icon={<Loader size={16} />} title="Applying changes">
+              Updating {pendingCount} user{pendingCount === 1 ? "" : "s"} in ServiceNow. The table updates when it's done.
+            </Alert>
+          ) : (
+            <Alert color="yellow" icon={<IconAlertTriangle size={16} />} title="Unapplied changes">
+              {pendingCount} user{pendingCount === 1 ? " is" : "s are"} checked but not applied yet. Click "Apply selected" to
+              make the changes, or uncheck {pendingCount === 1 ? "it" : "them"}.
+            </Alert>
+          ))}
 
         {error && (
           <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Some users failed to link">

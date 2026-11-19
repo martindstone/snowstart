@@ -23,8 +23,8 @@ export default function LinkServicesSection() {
       tabView="services"
       title="Link existing PagerDuty services into ServiceNow"
       description={
-        "Sets each Configuration Item's PagerDuty service field (\"Configuration Items and Assignment Groups map to " +
-        'PagerDuty" mode). Search by name — ServiceNow is queried on demand rather than pulling the whole CMDB.'
+        "Links each PagerDuty service to a ServiceNow Configuration Item and creates the service's webhook in PagerDuty. " +
+        'Exact name matches are suggested (ignoring the app\'s "SN:" prefix); search to pick a different CI.'
       }
       sourceColumnLabel="PagerDuty service"
       targetColumnLabel="ServiceNow Configuration Item"

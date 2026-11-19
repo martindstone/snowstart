@@ -53,9 +53,12 @@ export default function Shell() {
 
   const [updateSetOpen, setUpdateSetOpen] = useState(false);
   const [changesOpen, setChangesOpen] = useState(false);
+  // Until setup is complete the other tabs can't do anything useful, so only Setup is available.
+  const locked = !!readiness?.needsSetup;
+  const activeView: View = locked ? "setup" : view;
   // A section is mounted the first time it's opened and then kept, so what's loaded and ticked survives tab switches.
   const [visited, setVisited] = useState<Set<View>>(new Set());
-  if (!visited.has(view)) setVisited(new Set(visited).add(view));
+  if (!visited.has(activeView)) setVisited(new Set(visited).add(activeView));
 
   // Bootstrapping failed (for example the instance was unreachable): let the user retry rather than sit on a spinner.
   if (!routed) {
@@ -148,10 +151,10 @@ export default function Shell() {
       <Container size="lg" py="md">
         {/* display-none, not Mantine's default Activity: Activity tears effects down while a panel is hidden, so every section would
             reload its data each time you came back to it. */}
-        <Tabs value={view} onChange={(v) => v && setView(v as View)} keepMounted keepMountedMode="display-none">
+        <Tabs value={activeView} onChange={(v) => v && setView(v as View)} keepMounted keepMountedMode="display-none">
           <Tabs.List mb="md" style={{ flexWrap: "nowrap", overflowX: "auto" }}>
             {TABS.map((t) => (
-              <Tabs.Tab key={t.value} value={t.value} style={{ flexShrink: 0 }}>
+              <Tabs.Tab key={t.value} value={t.value} disabled={locked && t.value !== "setup"} style={{ flexShrink: 0 }}>
                 {t.value === "setup" ? (
                   <Indicator color={setupColor} size={8} offset={-4} position="middle-end" processing={readinessStatus === "loading"}>
                     <Box pr={14}>{t.label}</Box>
@@ -163,7 +166,7 @@ export default function Shell() {
                 ) : (
                   <Group gap={6} wrap="nowrap">
                     {t.label}
-                    {!!hintCounts[t.value] && (
+                    {!locked && !!hintCounts[t.value] && (
                       <Badge size="xs" circle={hintCounts[t.value]! < 10} variant="light" color="blue">
                         {hintCounts[t.value]}
                       </Badge>

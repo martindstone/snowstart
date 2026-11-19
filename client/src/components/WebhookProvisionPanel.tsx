@@ -7,8 +7,7 @@ import { currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 /**
  * Above the CI link table: provisions PagerDuty webhooks for linked CIs using the app's own "Provision Webhook into
  * PagerDuty" code. It runs by itself when a batch of links has been applied, and the button covers CIs that were already
- * linked (or a retry after a failure). Optional in the end: the app would otherwise create each webhook when the CI's
- * first incident arrives.
+ * linked (or a retry after a failure).
  */
 interface Props {
   /** Changes as links are applied. */
@@ -131,8 +130,9 @@ export default function WebhookProvisionPanel({ appliedCount, applying }: Props)
               Provision webhooks ({pending.length})
             </Button>
             <Text size="sm" c="dimmed">
-              {pending.length} linked CI{pending.length === 1 ? " has" : "s have"} no PagerDuty webhook yet. Optional:
-              the app creates one when the CI's first incident arrives.
+              {running
+                ? "Creating the webhooks in PagerDuty through ServiceNow. This waits for the scheduler and can take a minute or two…"
+                : `${pending.length} linked CI${pending.length === 1 ? " has" : "s have"} no PagerDuty webhook yet.`}
             </Text>
           </>
         ) : (
@@ -146,12 +146,6 @@ export default function WebhookProvisionPanel({ appliedCount, applying }: Props)
           </Badge>
         )}
       </Group>
-      {running && (
-        <Text size="sm" c="dimmed">
-          Running the app's webhook provisioning on ServiceNow — this waits for the scheduler and can take a minute or
-          two…
-        </Text>
-      )}
       {failures.length > 0 && (
         <Alert color="orange" icon={<IconAlertTriangle size={16} />} title="Some webhooks weren't created">
           {failures.map((f) => (

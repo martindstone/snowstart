@@ -9,14 +9,14 @@ import { currentSnCreds, useAppStore } from "../store/appStore";
 function EntryBadge({ entry }: { entry: ViewStatus | undefined }) {
   if (!entry) return null;
   if (entry.fields.length === 0) return <Badge color="gray" variant="light">not in this app version</Badge>;
-  const n = entry.missing.reduce((sum, m) => sum + m.fields.length, 0);
-  return n === 0 ? (
+  const complete = entry.missing.every((m) => m.fields.length === 0);
+  return complete ? (
     <Badge color="green" variant="light" leftSection={<IconCheck size={10} />}>
       complete
     </Badge>
   ) : (
-    <Badge color="orange" variant="light">
-      {n} field{n === 1 ? "" : "s"} missing
+    <Badge color="gray" variant="light">
+      not added yet
     </Badge>
   );
 }
@@ -54,21 +54,21 @@ export default function ViewsSection() {
       for (const entry of VIEW_PLAN.filter((e) => enabled[e.key])) {
         const { fields, results } = await applyViewPlan(creds, entry, entry.key === "cis" ? ciClasses : undefined);
         if (fields.length === 0) {
-          out.push(`${entry.label}: the app defines none of the expected fields — skipped`);
+          out.push(`${entry.label}: the app defines none of the expected fields, so it was skipped`);
           continue;
         }
         results.forEach((r: LayoutResult) => {
           const where = `${r.table} ${r.layout}`;
+          // Only problems are listed here; what was added is in the Changes drawer.
           if (r.note) out.push(`${where}: ${r.note}`);
           else if (r.added.length) {
-            out.push(`${where}: added ${r.added.join(", ")}`);
             logChange({
               system: "servicenow",
               table: r.layout === "list" ? "sys_ui_list_element" : "sys_ui_element",
               recordId: r.table,
               description: `Added ${r.added.join(", ")} to the ${r.table} ${r.layout} (Default view)`,
             });
-          } else out.push(`${where}: already complete`);
+          }
         });
       }
       setLines(out);

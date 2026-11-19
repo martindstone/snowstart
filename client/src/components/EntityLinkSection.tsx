@@ -226,6 +226,10 @@ export default function EntityLinkSection({
   // took effect when they haven't (or failed and were never retried).
   const pendingCount = rows.filter((r) => r.link && r.status !== "done").length;
   const appliedCount = rows.filter((r) => r.status === "done" && !r.preexisting).length;
+  // Still to be written while a batch is applying (failed rows are done trying, so they don't count).
+  const remainingCount = rows.filter((r) => r.link && (r.status === "idle" || r.status === "linking")).length;
+  const linkedCount = rows.filter((r) => r.status === "done").length;
+  const unmatchedCount = rows.filter((r) => r.status !== "done" && !r.auto).length;
   const waitingCount = rows.filter((r) => r.auto && r.status !== "done").length;
   useEffect(() => {
     if (tabView && loaded) setTabCount(tabView, waitingCount);
@@ -249,6 +253,11 @@ export default function EntityLinkSection({
 
         {!loading && rows.length > 0 && (
           <>
+            <Group gap="xs">
+              <Badge color="green">{linkedCount} linked</Badge>
+              <Badge color="teal">{waitingCount} matched, not linked</Badge>
+              <Badge color="gray">{unmatchedCount} no match yet</Badge>
+            </Group>
             <Group>
               <Button onClick={handleApply} loading={applying} variant="light">
                 Apply linked rows
@@ -259,10 +268,16 @@ export default function EntityLinkSection({
               <Button onClick={clearSelection} variant="subtle" color="gray" disabled={applying || pendingCount === 0}>
                 Clear selection
               </Button>
-              {pendingCount > 0 && (
-                <Text size="sm" c="yellow.7">
-                  {pendingCount} row{pendingCount === 1 ? "" : "s"} checked but not applied yet
+              {applying ? (
+                <Text size="sm" c="blue.7">
+                  Applying…
                 </Text>
+              ) : (
+                pendingCount > 0 && (
+                  <Text size="sm" c="yellow.7">
+                    {pendingCount} row{pendingCount === 1 ? "" : "s"} checked but not applied yet
+                  </Text>
+                )
               )}
             </Group>
             {extra?.({ appliedCount, applying })}
@@ -345,12 +360,17 @@ export default function EntityLinkSection({
           </>
         )}
 
-        {pendingCount > 0 && (
-          <Alert color="yellow" icon={<IconAlertTriangle size={16} />} title="Unapplied changes">
-            You've checked {pendingCount} row{pendingCount === 1 ? "" : "s"} that{" "}
-            {pendingCount === 1 ? "hasn't" : "haven't"} been applied yet. Click "Apply linked rows" (or uncheck{" "}
-            {pendingCount === 1 ? "it" : "them"}) before moving on.
+        {applying ? (
+          <Alert color="blue" icon={<Loader size={16} />} title="Applying changes">
+            Linking {remainingCount} row{remainingCount === 1 ? "" : "s"} in ServiceNow…
           </Alert>
+        ) : (
+          pendingCount > 0 && (
+            <Alert color="yellow" icon={<IconAlertTriangle size={16} />} title="Unapplied changes">
+              {pendingCount} row{pendingCount === 1 ? " is" : "s are"} checked but not applied yet. Click "Apply linked rows" to
+              make the changes, or uncheck {pendingCount === 1 ? "it" : "them"}.
+            </Alert>
+          )
         )}
 
         {loadError && (

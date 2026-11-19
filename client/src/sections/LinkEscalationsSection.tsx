@@ -15,8 +15,8 @@ export default function LinkEscalationsSection() {
       tabView="escalations"
       title="Link existing PagerDuty escalation policies into ServiceNow"
       description={
-        'Sets each Assignment Group\'s default PagerDuty escalation policy ("Configuration Items and Assignment ' +
-        'Groups map to PagerDuty" mode). Search by name to find the group.'
+        "Links each PagerDuty escalation policy to a ServiceNow Assignment Group, so incidents assigned to the group use that " +
+        'policy. Exact name matches are suggested (ignoring the app\'s "SN:" prefix); search to pick a different group.'
       }
       sourceColumnLabel="PagerDuty escalation policy"
       targetColumnLabel="ServiceNow Assignment Group"
