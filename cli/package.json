@@ -1,6 +1,6 @@
 {
   "name": "snowstart",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Set up and manage the PagerDuty ↔ ServiceNow integration. Runs locally; installs and configures the PagerDuty app on a ServiceNow instance, then links users, services and escalation policies.",
   "keywords": [
     "pagerduty",

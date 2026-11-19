@@ -21,6 +21,18 @@ export interface ViewPlanEntry {
   layoutTables: string[];
 }
 
+/** CI classes offered for the form fields. Classes without a form layout of their own are skipped (they inherit cmdb_ci's). */
+export const COMMON_CI_CLASSES = [
+  "cmdb_ci",
+  "cmdb_ci_appl",
+  "cmdb_ci_server",
+  "cmdb_ci_computer",
+  "cmdb_ci_service",
+  "cmdb_ci_business_app",
+  "cmdb_ci_database",
+  "cmdb_ci_netgear",
+];
+
 export const VIEW_PLAN: ViewPlanEntry[] = [
   {
     key: "users",
@@ -51,8 +63,9 @@ export const VIEW_PLAN: ViewPlanEntry[] = [
       "x_pd_integration_pagerduty_webhook",
       "x_pd_integration_pagerduty_change_event_token",
     ],
-    // A class with its own form layout (e.g. cmdb_ci_appl) doesn't inherit fields added to cmdb_ci's.
-    layoutTables: ["cmdb_ci", "cmdb_ci_appl"],
+    // A class with its own form layout (e.g. cmdb_ci_appl) doesn't inherit fields added to cmdb_ci's, so by default
+    // every common class is covered. The list columns are shared, so only the first (cmdb_ci) is used for those.
+    layoutTables: COMMON_CI_CLASSES,
   },
   {
     key: "incidents",
@@ -61,17 +74,6 @@ export const VIEW_PLAN: ViewPlanEntry[] = [
     fields: ["x_pd_integration_incident"],
     layoutTables: ["incident"],
   },
-];
-
-export const COMMON_CI_CLASSES = [
-  "cmdb_ci",
-  "cmdb_ci_appl",
-  "cmdb_ci_server",
-  "cmdb_ci_computer",
-  "cmdb_ci_service",
-  "cmdb_ci_business_app",
-  "cmdb_ci_database",
-  "cmdb_ci_netgear",
 ];
 
 export interface LayoutResult {

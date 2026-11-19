@@ -3,6 +3,7 @@ import { Badge, Box, Button, Container, Group, Indicator, Loader, Menu, Modal, S
 import { IconAlertTriangle, IconChevronDown, IconHistory, IconPlugConnectedX } from "@tabler/icons-react";
 import { useAppStore, type View } from "../store/appStore";
 import { countMatchedNotLinked } from "../utils/userLinks";
+import ErrorBoundary from "./ErrorBoundary";
 import UpdateSetPanel from "./UpdateSetPanel";
 import ChangesDrawer from "./ChangesDrawer";
 import SetupView from "../setup/SetupView";
@@ -178,7 +179,7 @@ export default function Shell() {
           </Tabs.List>
           {TABS.map((t) => (
             <Tabs.Panel key={t.value} value={t.value}>
-              {visited.has(t.value) && PANELS[t.value]()}
+              {visited.has(t.value) && <ErrorBoundary label={t.label}>{PANELS[t.value]()}</ErrorBoundary>}
             </Tabs.Panel>
           ))}
         </Tabs>

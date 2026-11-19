@@ -92,7 +92,14 @@ function ServiceNowCard({ done }: { done: boolean }) {
           </Button>
         </Group>
       ) : (
-        <Stack gap="xs">
+        <Stack
+          component="form"
+          gap="xs"
+          onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            void connect();
+          }}
+        >
           <Text size="sm" c="dimmed">
             Your sandbox instance and an <code>admin</code> account that also has the roles <code>snc_basic_auth_api_access</code>{" "}
             and <code>snc_platform_rest_api_access</code>, so it can use the REST and Table APIs with Basic auth.
@@ -101,7 +108,7 @@ function ServiceNowCard({ done }: { done: boolean }) {
           <TextInput label="Admin username" {...form.getInputProps("username")} />
           <PasswordInput label="Admin password" {...form.getInputProps("password")} />
           <Group>
-            <Button onClick={connect} loading={validating}>
+            <Button type="submit" loading={validating}>
               Connect
             </Button>
           </Group>
@@ -165,13 +172,20 @@ function PagerDutyCard({ done }: { done: boolean }) {
           </Button>
         </Group>
       ) : (
-        <Stack gap="xs">
+        <Stack
+          component="form"
+          gap="xs"
+          onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            void connect();
+          }}
+        >
           <Text size="sm" c="dimmed">
             A REST API v2 token (Integrations → API Access Keys). Both user-level and account-level tokens work.
           </Text>
           <PasswordInput label="API token" {...form.getInputProps("apiToken")} />
           <Group>
-            <Button onClick={connect} loading={validating}>
+            <Button type="submit" loading={validating}>
               Connect
             </Button>
           </Group>

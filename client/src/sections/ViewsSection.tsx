@@ -26,7 +26,7 @@ export default function ViewsSection() {
   const refreshConfigStatus = useAppStore((s) => s.refreshConfigStatus);
   const [status, setStatus] = useState<ViewStatus[] | null>(null);
   const [enabled, setEnabled] = useState<Record<string, boolean>>(Object.fromEntries(VIEW_PLAN.map((e) => [e.key, true])));
-  const [ciClasses, setCiClasses] = useState<string[]>(["cmdb_ci", "cmdb_ci_appl"]);
+  const [ciClasses, setCiClasses] = useState<string[]>(COMMON_CI_CLASSES);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [lines, setLines] = useState<string[]>([]);
@@ -99,7 +99,11 @@ export default function ViewsSection() {
             }
             description={entry.fields.map((f) => f.replace("x_pd_integration_", "")).join(", ")}
             checked={enabled[entry.key]}
-            onChange={(e) => setEnabled((s) => ({ ...s, [entry.key]: e.currentTarget.checked }))}
+            onChange={(e) => {
+              // Read it now: the updater below runs later, when the event's currentTarget is already null.
+              const checked = e.currentTarget.checked;
+              setEnabled((s) => ({ ...s, [entry.key]: checked }));
+            }}
             disabled={running}
           />
         ))}
