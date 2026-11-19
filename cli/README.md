@@ -8,7 +8,7 @@ A setup wizard for the PagerDuty ServiceNow integration. It installs and configu
 
 - A ServiceNow **admin** account with the roles `snc_basic_auth_api_access` and `snc_platform_rest_api_access`
 - The PagerDuty app's **update set XML** (not needed if the app is already installed)
-- A PagerDuty **REST API token**
+- A PagerDuty **REST API token** (global, read/write)
 
 ## Run it
 
