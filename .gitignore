@@ -1,0 +1,34 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+cli/bin
+cli/public
+*.tgz
+*.tsbuildinfo
+.vite
+
+# Secrets and local config. The app itself never reads these (credentials are typed into the wizard);
+# .env here only feeds local test scripts. Keep the example file committed.
+.env
+.env.*
+!.env.example
+.npmrc
+
+# The PagerDuty app's update set export is proprietary and ~10 MB. Users supply their own.
+pagerduty-*.xml
+update-set*.xml
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and editor
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local settings and scratch
+.claude/settings.local.json

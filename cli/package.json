@@ -1,0 +1,33 @@
+{
+  "name": "snowstart",
+  "version": "0.1.1",
+  "description": "Setup wizard for the PagerDuty ↔ ServiceNow integration. Runs locally; installs and configures the PagerDuty app on a ServiceNow instance.",
+  "keywords": [
+    "pagerduty",
+    "servicenow",
+    "setup",
+    "wizard",
+    "integration"
+  ],
+  "license": "MIT",
+  "author": "Martin Stone",
+  "bin": {
+    "snowstart": "bin/snowstart.cjs"
+  },
+  "files": [
+    "bin",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
