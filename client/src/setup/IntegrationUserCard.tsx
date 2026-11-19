@@ -15,7 +15,6 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconAlertTriangle, IconCheck, IconRefresh } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
 import {
   SNApiError,
   assignRole,
@@ -28,12 +27,11 @@ import {
 } from "../api/servicenow";
 import { PDApiError, deleteWebhookSubscription, getAllWebhookSubscriptions } from "../api/pagerduty";
 import { SN_FIELDS, SN_INTEGRATION_USER_ROLES, SN_PROPERTIES, SN_TABLES } from "../config/schema";
-import { currentPdCreds, currentAdminId, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, currentAdminId, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 import { generatePassword } from "../utils/password";
 import { applyIntegrationPassword } from "../api/userPassword";
 import { ensureWebhookProcessors } from "../api/webhookProcessing";
 import { ensureWorkflowConnection } from "../api/workflowConnection";
-import { detectExistingConfig, type ExistingConfig } from "../api/existingConfig";
 import type { SNUser } from "../types/servicenow";
 import type { PDWebhookSubscription } from "../types/pagerduty";
 
@@ -48,19 +46,18 @@ function hostOf(url: string | undefined): string {
   }
 }
 
-export default function Step6IntegrationUser() {
-  const pdUsers = useWizardStore((s) => s.pdUsers);
-  const directoryStatus = useWizardStore((s) => s.directoryStatus);
-  const pdServices = useWizardStore((s) => s.pdServices);
-  const integrationUser = useWizardStore((s) => s.integrationUser);
-  const defaultPdUserId = useWizardStore((s) => s.defaultPdUserId);
-  const setIntegrationUser = useWizardStore((s) => s.setIntegrationUser);
-  const loadDirectory = useWizardStore((s) => s.loadDirectory);
-  const logChange = useWizardStore((s) => s.logChange);
-  const [detected, setDetected] = useState<ExistingConfig | null>(null);
-  const [detectError, setDetectError] = useState<string | null>(null);
+export default function IntegrationUserCard() {
+  const pdUsers = useAppStore((s) => s.pdUsers);
+  const directoryStatus = useAppStore((s) => s.directoryStatus);
+  const pdServices = useAppStore((s) => s.pdServices);
+  const integrationUser = useAppStore((s) => s.integrationUser);
+  const defaultPdUserId = useAppStore((s) => s.defaultPdUserId);
+  const setIntegrationUser = useAppStore((s) => s.setIntegrationUser);
+  const loadDirectory = useAppStore((s) => s.loadDirectory);
+  const refreshReadiness = useAppStore((s) => s.refreshReadiness);
+  const detected = useAppStore((s) => s.readiness?.config) ?? null;
+  const logChange = useAppStore((s) => s.logChange);
   const [showForm, setShowForm] = useState(false);
-  const [detectNonce, setDetectNonce] = useState(0);
   const [creating, setCreating] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,35 +101,23 @@ export default function Step6IntegrationUser() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedPdUser?.id, linkedPdUser?.email]);
 
-  // Recognise an integration account the app is already using (named by its sn_auth_user property).
+  // An integration account the app already uses (named by its sn_auth_user property): prefill the form from it, so
+  // "Reconfigure" and "Fix and use" act on that account rather than creating a new one.
+  const existingUserId = detected?.integrationUser?.sys_id;
   useEffect(() => {
-    if (integrationUser) return;
-    let cancelled = false;
-    setDetectError(null);
-    detectExistingConfig(currentSnCreds())
-      .then((cfg) => {
-        if (cancelled) return;
-        setDetected(cfg);
-        const u = cfg.integrationUser;
-        if (u) {
-          form.setFieldValue("userName", u.user_name);
-          form.setFieldValue("firstName", u.first_name || "PagerDuty");
-          form.setFieldValue("lastName", u.last_name || "Integration");
-        } else if (cfg.snAuthUser) {
-          form.setFieldValue("userName", cfg.snAuthUser);
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) setDetectError(e instanceof Error ? e.message : "Couldn't read the existing configuration");
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (integrationUser || !detected) return;
+    const u = detected.integrationUser;
+    if (u) {
+      form.setFieldValue("userName", u.user_name);
+      form.setFieldValue("firstName", u.first_name || "PagerDuty");
+      form.setFieldValue("lastName", u.last_name || "Integration");
+    } else if (detected.snAuthUser) {
+      form.setFieldValue("userName", detected.snAuthUser);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detectNonce]);
+  }, [existingUserId, detected?.snAuthUser, !!integrationUser]);
 
   const existingUser = detected?.integrationUser ?? null;
-  const detecting = !integrationUser && !detected && !detectError;
   const showExistingPanel = !integrationUser && !!existingUser && !showForm;
   // What stops the existing account being used as is. "Fix and use" resolves all of these but the last two notes.
   const problems: string[] = [];
@@ -164,6 +149,7 @@ export default function Step6IntegrationUser() {
     if (!existingUser || !linkedPdUser) return;
     setIntegrationUser({ snUser: existingUser, password: null, linkedPdUser, isExisting: true });
     void loadDirectory();
+    void refreshReadiness();
   };
 
   const handleCreate = async () => {
@@ -206,7 +192,7 @@ export default function Step6IntegrationUser() {
       } catch (createError) {
         // Most likely a duplicate user_name (e.g. a leftover from a prior
         // run) — fall back to updating that existing account instead of
-        // leaving the wizard stuck with no way forward.
+        // leaving setup stuck with no way forward.
         const existing = await getTablePage<SNUser>(creds, SN_TABLES.sysUser, {
           sysparm_query: `user_name=${form.values.userName}`,
           sysparm_limit: 1,
@@ -311,6 +297,7 @@ export default function Step6IntegrationUser() {
         });
         // The user directory was pulled before this account existed; refresh it so the link step sees it.
         void loadDirectory();
+        void refreshReadiness();
       }
     } catch (e) {
       setError(
@@ -359,6 +346,7 @@ export default function Step6IntegrationUser() {
         description: `Reset the password for ${integrationUser.snUser.user_name} and updated the webhook basic auth credentials to match`,
       });
       setIntegrationUser({ ...integrationUser, password: newPassword, isExisting: false });
+      void refreshReadiness();
       setJustReset(true);
     } catch (e) {
       setResetError(e instanceof SNApiError ? e.message : e instanceof Error ? e.message : "Failed to reset password");
@@ -445,35 +433,8 @@ export default function Step6IntegrationUser() {
   const showWebhookCleanup = !!integrationUser;
 
   return (
-    <StepShell
-      title="Create the ServiceNow integration user"
-      description="This account authenticates PagerDuty's calls into ServiceNow."
-      nextDisabled={!integrationUser}
-    >
+    <>
       <Stack maw={480}>
-        {detecting && <Text c="dimmed">Checking for an existing integration user…</Text>}
-
-        {detectError && (
-          <Alert
-            color="orange"
-            icon={<IconAlertTriangle size={16} />}
-            title="Couldn't check for an existing integration user"
-          >
-            <Stack gap="xs">
-              <Text size="sm">{detectError}</Text>
-              <Text size="sm" c="dimmed">
-                Retry before creating anything: if an integration user already exists, creating one here would only
-                update it.
-              </Text>
-              <Group>
-                <Button size="xs" variant="default" onClick={() => setDetectNonce((n) => n + 1)}>
-                  Retry check
-                </Button>
-              </Group>
-            </Stack>
-          </Alert>
-        )}
-
         {showExistingPanel && existingUser && detected && (
           <Alert
             color={problems.length ? "yellow" : "green"}
@@ -526,7 +487,7 @@ export default function Step6IntegrationUser() {
           </Alert>
         )}
 
-        {!showExistingPanel && !detecting && (
+        {!showExistingPanel && (
           <>
             <TextInput label="Username" disabled={!!integrationUser} {...form.getInputProps("userName")} />
             <Group grow>
@@ -755,6 +716,6 @@ export default function Step6IntegrationUser() {
           )}
         </Paper>
       )}
-    </StepShell>
+    </>
   );
 }

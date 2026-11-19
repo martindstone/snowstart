@@ -9,7 +9,7 @@ cli/public
 *.tsbuildinfo
 .vite
 
-# Secrets and local config. The app itself never reads these (credentials are typed into the wizard);
+# Secrets and local config. The app itself never reads these (credentials are typed into the app);
 # .env here only feeds local test scripts. Keep the example file committed.
 .env
 .env.*

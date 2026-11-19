@@ -4,7 +4,7 @@ import type { SNCredentials, SNUser } from "../types/servicenow";
 
 /**
  * Reads what the PagerDuty app on this instance is already configured with, so steps can recognise an instance that
- * was set up before (by hand, by an earlier wizard run, or by someone else) and offer to keep it instead of redoing it.
+ * was set up before (by hand, by an earlier SnowStart run, or by someone else) and offer to keep it instead of redoing it.
  * Read-only; the two password properties are only reported as set/unset.
  */
 

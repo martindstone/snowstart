@@ -3,7 +3,7 @@ import { Alert, Button, Group, Modal, Select, Stack, TextInput } from "@mantine/
 import { useForm } from "@mantine/form";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { PDApiError, createUser } from "../api/pagerduty";
-import { currentPdCreds, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, useAppStore } from "../store/appStore";
 import type { PDUser } from "../types/pagerduty";
 
 interface CreatePdUserModalProps {
@@ -13,7 +13,7 @@ interface CreatePdUserModalProps {
 }
 
 export default function CreatePdUserModal({ opened, onClose, onCreated }: CreatePdUserModalProps) {
-  const addPdUser = useWizardStore((s) => s.addPdUser);
+  const addPdUser = useAppStore((s) => s.addPdUser);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

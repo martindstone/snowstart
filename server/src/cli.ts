@@ -3,7 +3,7 @@ import net from "node:net";
 import path from "node:path";
 import { createApp } from "./app.js";
 
-// Entry for the published `snowstart` package: one local process that serves the wizard and its relay.
+// Entry for the published `snowstart` package: one local process that serves the app and its relay.
 
 const MIN_NODE_MAJOR = 20;
 const major = Number(process.versions.node.split(".")[0]);
@@ -14,7 +14,7 @@ if (major < MIN_NODE_MAJOR) {
 
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`snowstart — PagerDuty ↔ ServiceNow setup wizard
+  console.log(`snowstart — PagerDuty ↔ ServiceNow setup and linking app
 
 Usage: npx snowstart [options]
 

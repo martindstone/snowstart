@@ -6,7 +6,7 @@ import type { SNCredentials } from "../types/servicenow";
  * Events Processor" scheduled jobs and flips webhook processing to async, but on
  * recent ServiceNow releases its scoped GlideRecord writes to sysauto_script are
  * refused by the cross-scope access policy. An admin can create the same records
- * through the Table API, so the wizard does it with no change to any access setting.
+ * through the Table API, so SnowStart does it with no change to any access setting.
  * The health check then finds the jobs already in place and passes.
  */
 const PROCESSORS = [

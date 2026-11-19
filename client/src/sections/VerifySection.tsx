@@ -1,61 +1,30 @@
-import { useEffect, useRef } from "react";
-import confetti from "canvas-confetti";
-import { Anchor, Badge, Group, List, Paper, ScrollArea, Stack, Table, Text, ThemeIcon, Title } from "@mantine/core";
-import { IconCircleCheck } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
-import { snNavLink, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { Anchor, List, Paper, Stack, Title } from "@mantine/core";
+import Section from "../components/Section";
+import { snNavLink, snRecordLink, useAppStore } from "../store/appStore";
 import { derivePdInstanceUrl } from "../utils/pdUrl";
 
-function celebrate() {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const shared = { spread: 55, startVelocity: 45, origin: { y: 0.6 } };
-  confetti({ ...shared, particleCount: 80, angle: 60, origin: { x: 0, y: 0.6 } });
-  confetti({ ...shared, particleCount: 80, angle: 120, origin: { x: 1, y: 0.6 } });
-}
-
-export default function Step10Summary() {
-  const changeLog = useWizardStore((s) => s.changeLog);
-  const updateSet = useWizardStore((s) => s.updateSet);
-  const snCreds = useWizardStore((s) => s.snCreds);
-  const integrationUser = useWizardStore((s) => s.integrationUser);
-  const pdConnection = useWizardStore((s) => s.pdConnection);
-  const pdUsers = useWizardStore((s) => s.pdUsers);
-  const pdServices = useWizardStore((s) => s.pdServices);
-  const fired = useRef(false);
+export default function VerifySection() {
+  const updateSet = useAppStore((s) => s.updateSet);
+  const snCreds = useAppStore((s) => s.snCreds);
+  const integrationUser = useAppStore((s) => s.integrationUser);
+  const pdConnection = useAppStore((s) => s.pdConnection);
+  const pdUsers = useAppStore((s) => s.pdUsers);
+  const pdServices = useAppStore((s) => s.pdServices);
 
   const sn = (target: string) => (snCreds ? snNavLink(snCreds.instanceUrl, target) : undefined);
   const pdBase = derivePdInstanceUrl(
     pdConnection?.user?.html_url ?? pdUsers.find((u) => u.html_url)?.html_url ?? pdServices.find((x) => x.html_url)?.html_url,
   );
 
-  useEffect(() => {
-    if (fired.current) return;
-    fired.current = true;
-    celebrate();
-  }, []);
-
   return (
-    <StepShell title="Setup complete" hideNext>
+    <Section
+      title="Verify"
+      description="Checks that confirm the integration works end to end. Most are one click away in ServiceNow or PagerDuty."
+    >
       <Stack>
-        <Paper withBorder p="md" radius="md" bg="var(--mantine-color-green-light)">
-          <Group gap="sm" wrap="nowrap" align="flex-start">
-            <ThemeIcon color="green" size={36} radius="xl">
-              <IconCircleCheck size={22} />
-            </ThemeIcon>
-            <div>
-              <Title order={4}>ServiceNow is configured and ready to use</Title>
-              <Text size="sm" c="dimmed" mt={2}>
-                The PagerDuty app is installed and configured: table access, base settings, views and priority mappings,
-                the integration user (with its async webhook processors and PagerDuty workflow connection), and any
-                users, services and escalation policies you linked are all live. The checks below confirm it end to end.
-              </Text>
-            </div>
-          </Group>
-        </Paper>
-
         <Paper withBorder p="md" radius="md">
           <Title order={5} mb="xs">
-            Suggested next steps
+            Checks
           </Title>
           <List spacing="xs" size="sm">
             <List.Item>
@@ -93,7 +62,7 @@ export default function Step10Summary() {
               ) : (
                 "Pagerduty Webhook Events Processor"
               )}{" "}
-              scheduled jobs are active and run as the integration user. The wizard created them because the app's own
+              scheduled jobs are active and run as the integration user. SnowStart creates them because the app's own
               health check can't on newer ServiceNow releases.
             </List.Item>
             <List.Item>
@@ -105,8 +74,8 @@ export default function Step10Summary() {
               ) : (
                 "Workflow Integrations page (Automation → Incident Workflows)"
               )}{" "}
-              for the <em>ServiceNow instance …</em> connection the wizard created. It holds the integration user's
-              password, so after changing that password, re-run <strong>Reset password</strong> in this wizard or click
+              for the <em>ServiceNow instance …</em> connection SnowStart created. It holds the integration user's
+              password, so after changing that password, re-run <strong>Reset password</strong> in Setup or click
               Save on{" "}
               {snCreds ? (
                 <Anchor href={sn("x_pd_integration_pd_settings_page.do")} target="_blank">
@@ -136,7 +105,7 @@ export default function Step10Summary() {
                 </>
               )}
               . The integration user's password is stored only in the app's encrypted settings; use Reset password in
-              this wizard to rotate it.
+              Setup to rotate it.
             </List.Item>
             <List.Item>
               {updateSet && snCreds ? (
@@ -164,52 +133,16 @@ export default function Step10Summary() {
                   )
                 </>
               )}
-              . This wizard configures the ServiceNow side of the connection; per-service PagerDuty webhook
-              subscriptions aren't created automatically.
+              . Linking a CI in the Link services tab creates its webhook subscription for you.
             </List.Item>
             <List.Item>
               Trigger a test: create a PagerDuty incident on a linked service, or update a ServiceNow incident's
               Assignment Group, and confirm it syncs in both directions.
             </List.Item>
-            <List.Item>You can re-run this wizard any time to link more users, services, or escalation policies.</List.Item>
           </List>
         </Paper>
 
-        {changeLog.length === 0 ? (
-          <Text c="dimmed">No changes were made this session.</Text>
-        ) : (
-          <ScrollArea h={420}>
-            <Table stickyHeader striped>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Time</Table.Th>
-                  <Table.Th>System</Table.Th>
-                  <Table.Th>Description</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {changeLog.map((entry) => (
-                  <Table.Tr key={entry.id}>
-                    <Table.Td>{new Date(entry.timestamp).toLocaleTimeString()}</Table.Td>
-                    <Table.Td>
-                      <Badge color={entry.system === "servicenow" ? "blue" : "grape"}>{entry.system}</Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      {entry.link ? (
-                        <Anchor href={entry.link} target="_blank">
-                          {entry.description}
-                        </Anchor>
-                      ) : (
-                        entry.description
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
-        )}
       </Stack>
-    </StepShell>
+    </Section>
   );
 }

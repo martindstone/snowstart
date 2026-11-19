@@ -2,7 +2,7 @@ import { getAllTableRows } from "./servicenow";
 import { getAllUsers } from "./pagerduty";
 import type { SNCredentials, SNUser } from "../types/servicenow";
 import type { PDCredentials, PDUser } from "../types/pagerduty";
-import type { UserMatch } from "../types/wizard";
+import type { UserMatch } from "../types/app";
 
 export interface Directory {
   snUsers: SNUser[];

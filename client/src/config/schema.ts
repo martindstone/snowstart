@@ -1,5 +1,5 @@
 /**
- * Every ServiceNow table/field/property/role name the wizard writes to,
+ * Every ServiceNow table/field/property/role name this app writes to,
  * confirmed live against a real instance with the PagerDuty ServiceNow app
  * (v8.4.2, scope x_pd_integration) installed. Keep this file as the single
  * source of truth — if a future app version renames something, this is the

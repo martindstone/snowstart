@@ -8,7 +8,7 @@ import type { PDCredentials } from "../types/pagerduty";
  * integration user's credentials so PagerDuty can call back into ServiceNow: manual sync mode and the
  * "create ServiceNow incident" workflow action both use it. The app provisions it from its Settings
  * page Save and from the health check, but both bake in whatever password is stored at that moment.
- * This reproduces PagerDutyProvisioning.ensureWorkflowConnection (basic-auth mode) so the wizard can
+ * This reproduces PagerDutyProvisioning.ensureWorkflowConnection (basic-auth mode) so SnowStart can
  * create or refresh it once the integration user's final password is known.
  */
 const CONNECTION_ID_PROPERTY = "x_pd_integration.connection_id";

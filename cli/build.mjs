@@ -1,4 +1,4 @@
-// Builds the publishable package: the wizard UI into ./public and the relay (with Express and its other dependencies
+// Builds the publishable package: the app's UI into ./public and the relay (with Express and its other dependencies
 // bundled in) into a single executable ./bin/snowstart.cjs, so `npx snowstart` installs nothing else.
 import { execFileSync } from "node:child_process";
 import { chmodSync, cpSync, mkdirSync, rmSync } from "node:fs";

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Badge, Button, Checkbox, Group, Loader, ScrollArea, Select, Stack, Table, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import StepShell from "./StepShell";
+import Section from "./Section";
 import { stripSnPrefix } from "../utils/names";
+import { useAppStore, type View } from "../store/appStore";
 
 export interface EntityLinkSource {
   id: string;
@@ -49,7 +50,7 @@ function withSelected(options: EntityLinkTarget[], selected: EntityLinkTarget | 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_SEARCH_LENGTH = 2;
 
-interface EntityLinkStepProps {
+interface EntityLinkSectionProps {
   title: string;
   description: string;
   sourceColumnLabel: string;
@@ -70,11 +71,13 @@ interface EntityLinkStepProps {
    * when the link was written but a follow-up action couldn't be completed; it's shown on the row.
    */
   applyLink: (source: EntityLinkSource, target: EntityLinkTarget) => Promise<void | string>;
+  /** The tab this section lives on; once loaded, it shows how many proposed matches are waiting to be applied. */
+  tabView?: View;
   /**
    * Extra content above the table. `appliedCount` changes as links are applied and `applying` is true while that's
-   * happening, so it can react once a batch finishes. `setBlocking(true)` keeps Next disabled while it works.
+   * happening, so it can react once a batch finishes.
    */
-  extra?: (ctx: { appliedCount: number; applying: boolean; setBlocking: (blocking: boolean) => void }) => ReactNode;
+  extra?: (ctx: { appliedCount: number; applying: boolean }) => ReactNode;
 }
 
 /**
@@ -84,7 +87,7 @@ interface EntityLinkStepProps {
  * candidates are always searched server-side (never a bulk table pull),
  * since a CI table can run into the thousands of rows.
  */
-export default function EntityLinkStep({
+export default function EntityLinkSection({
   title,
   description,
   sourceColumnLabel,
@@ -95,20 +98,22 @@ export default function EntityLinkStep({
   searchTargets,
   findExistingLinks,
   applyLink,
+  tabView,
   extra,
-}: EntityLinkStepProps) {
+}: EntityLinkSectionProps) {
+  const setTabCount = useAppStore((s) => s.setTabCount);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [blocking, setBlocking] = useState(false);
   const searchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     loadSources()
       .then(async (sources) => {
         // Look up a name-matched suggestion for every row in parallel — the
@@ -152,7 +157,7 @@ export default function EntityLinkStep({
         setLoaded(true);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -160,7 +165,7 @@ export default function EntityLinkStep({
     return () => {
       cancelled = true;
     };
-    // Runs once per mount — this step is only ever shown once per wizard run.
+    // Runs once per mount; the section stays mounted while you move between tabs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -221,6 +226,10 @@ export default function EntityLinkStep({
   // took effect when they haven't (or failed and were never retried).
   const pendingCount = rows.filter((r) => r.link && r.status !== "done").length;
   const appliedCount = rows.filter((r) => r.status === "done" && !r.preexisting).length;
+  const waitingCount = rows.filter((r) => r.auto && r.status !== "done").length;
+  useEffect(() => {
+    if (tabView && loaded) setTabCount(tabView, waitingCount);
+  }, [tabView, loaded, waitingCount, setTabCount]);
 
   // Rows proposed automatically by name (the app's "SN:" prefix ignored) that can still be applied.
   const matchedRows = rows.filter((r) => r.auto && r.selected && r.status !== "done" && r.status !== "linking");
@@ -233,7 +242,7 @@ export default function EntityLinkStep({
     // Linking is optional — always let the user move on with nothing checked
     // (or if the initial load failed outright) — but never past unapplied
     // checked rows, which "Next" would otherwise silently discard.
-    <StepShell title={title} description={description} nextDisabled={pendingCount > 0 || blocking}>
+    <Section title={title} description={description}>
       <Stack>
         {loading && <Text c="dimmed">Loading…</Text>}
         {!loading && loaded && rows.length === 0 && <Text c="dimmed">{emptyMessage}</Text>}
@@ -256,7 +265,7 @@ export default function EntityLinkStep({
                 </Text>
               )}
             </Group>
-            {extra?.({ appliedCount, applying, setBlocking })}
+            {extra?.({ appliedCount, applying })}
             <ScrollArea h={420}>
               <Table stickyHeader highlightOnHover>
                 <Table.Thead>
@@ -344,12 +353,18 @@ export default function EntityLinkStep({
           </Alert>
         )}
 
+        {loadError && (
+          <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Couldn't load the list">
+            {loadError}
+          </Alert>
+        )}
+
         {error && (
           <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Some rows failed to link">
             {error}
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </Section>
   );
 }

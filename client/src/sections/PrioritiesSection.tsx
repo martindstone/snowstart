@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Group, Stack, Table, Text } from "@mantine/core";
 import { IconAlertTriangle, IconCheck } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
+import Section from "../components/Section";
 import { applyPriority, isUpToDate, planPriorities, type PriorityPlanRow } from "../api/priorities";
 import { SNApiError } from "../api/servicenow";
 import { PDApiError } from "../api/pagerduty";
-import { currentPdCreds, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 
-export default function StepPriorities() {
-  const logChange = useWizardStore((s) => s.logChange);
+export default function PrioritiesSection() {
+  const logChange = useAppStore((s) => s.logChange);
+  const refreshConfigStatus = useAppStore((s) => s.refreshConfigStatus);
   const [rows, setRows] = useState<PriorityPlanRow[] | null>(null);
   const [pdCount, setPdCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function StepPriorities() {
         });
       }
       await load();
+      void refreshConfigStatus();
     } catch (e) {
       setError(e instanceof SNApiError ? e.message : e instanceof Error ? e.message : "Couldn't save the mappings");
       setSaving(false);
@@ -63,7 +65,7 @@ export default function StepPriorities() {
   };
 
   return (
-    <StepShell
+    <Section
       title="Priority mapping"
       description="Maps each PagerDuty priority to a ServiceNow Impact and Urgency. ServiceNow's own priority lookup rules turn that pair into the incident priority, so the mapping is chosen from this instance's actual lookup table."
     >
@@ -72,7 +74,13 @@ export default function StepPriorities() {
 
         {rows && pdCount === 0 && (
           <Alert color="blue" title="No priorities in this PagerDuty account">
-            Priorities are an optional PagerDuty feature. Nothing to map — continue.
+            Priorities are an optional PagerDuty feature, so there is nothing to map.
+          </Alert>
+        )}
+
+        {rows && rows.length > 0 && pending.length === 0 && (
+          <Alert color="green" icon={<IconCheck size={16} />} title="All priorities are mapped">
+            Every PagerDuty priority has an up-to-date mapping on this instance.
           </Alert>
         )}
 
@@ -123,6 +131,6 @@ export default function StepPriorities() {
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </Section>
   );
 }

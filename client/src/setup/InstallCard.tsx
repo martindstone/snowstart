@@ -1,11 +1,10 @@
 import { useRef, useState } from "react";
 import { Alert, Anchor, Badge, Button, FileInput, Group, List, Progress, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconCheck, IconUpload } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
 import { commitUpdateSet, previewUpdateSet, uploadUpdateSet, type CicdProgress, type PreviewProblem } from "../api/install";
 import { SNApiError } from "../api/servicenow";
 import { flushServiceNowCache } from "../api/cacheFlush";
-import { currentAdminId, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentAdminId, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 
 type Stage = "idle" | "uploading" | "previewing" | "committing" | "flushing" | "done";
 
@@ -16,11 +15,12 @@ const STAGE_LABEL: Record<Exclude<Stage, "idle" | "done">, string> = {
   flushing: "Clearing ServiceNow's cache",
 };
 
-export default function StepInstallApp() {
-  const snScope = useWizardStore((s) => s.snScope);
-  const setSnScope = useWizardStore((s) => s.setSnScope);
-  const logChange = useWizardStore((s) => s.logChange);
-  const snCreds = useWizardStore((s) => s.snCreds);
+export default function InstallCard() {
+  const snScope = useAppStore((s) => s.snScope);
+  const setSnScope = useAppStore((s) => s.setSnScope);
+  const logChange = useAppStore((s) => s.logChange);
+  const snCreds = useAppStore((s) => s.snCreds);
+  const refreshReadiness = useAppStore((s) => s.refreshReadiness);
 
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
@@ -28,7 +28,10 @@ export default function StepInstallApp() {
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<PreviewProblem[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  // The uploaded update set. The ref is what run() works from (it needs the latest value mid-flight); the state mirrors it
+  // so the labels below re-render when it's set.
   const remote = useRef<{ id: string; name: string; previewed: boolean } | null>(null);
+  const [remoteShown, setRemoteShown] = useState<{ id: string; name: string } | null>(null);
 
   const installed = !!snScope;
   const busy = stage !== "idle" && stage !== "done";
@@ -45,6 +48,7 @@ export default function StepInstallApp() {
         setProgress(null);
         const uploaded = await uploadUpdateSet(creds, file);
         remote.current = { id: uploaded.remoteUpdateSetId, name: uploaded.name, previewed: false };
+        setRemoteShown({ id: uploaded.remoteUpdateSetId, name: uploaded.name });
         logChange({
           system: "servicenow",
           table: "sys_remote_update_set",
@@ -93,6 +97,7 @@ export default function StepInstallApp() {
         setWarnings((w) => [...w, `Couldn't clear ServiceNow's cache: ${flushError instanceof Error ? flushError.message : "unknown error"}. If the health check later reports cross-scope errors, run gs.invalidateCache() in Scripts – Background (Global scope).`]);
       }
       setStage("done");
+      void refreshReadiness();
     } catch (e) {
       setError(e instanceof SNApiError ? e.message : e instanceof Error ? e.message : "Install failed");
       setStage("idle");
@@ -100,16 +105,12 @@ export default function StepInstallApp() {
   };
 
   return (
-    <StepShell
-      title="Install the PagerDuty app"
-      description="Sideloads the PagerDuty app from an update set XML export, using ServiceNow's own preview and commit."
-      nextDisabled={!installed || busy}
-    >
-      <Stack maw={560}>
+    <>
+      <Stack>
         {installed && (
           <Alert color="green" icon={<IconCheck size={16} />} title="PagerDuty app installed">
             {snScope.name} v{snScope.version} (scope <code>{snScope.scope}</code>).
-            {stage === "flushing" ? " Clearing ServiceNow's cache (about 20 seconds)…" : stage !== "done" && " Nothing to do here — continue."}
+            {stage === "flushing" && " Clearing ServiceNow's cache (about 20 seconds)…"}
           </Alert>
         )}
 
@@ -132,7 +133,7 @@ export default function StepInstallApp() {
             />
             <Group>
               <Button onClick={run} loading={busy} disabled={!file}>
-                {remote.current ? "Resume install" : "Install"}
+                {remoteShown ? "Resume install" : "Install"}
               </Button>
               {busy && <Badge color="blue">{STAGE_LABEL[stage as keyof typeof STAGE_LABEL]}</Badge>}
             </Group>
@@ -170,10 +171,10 @@ export default function StepInstallApp() {
             </List>
             <Text size="sm" mt="xs">
               Resolve them on the retrieved update set in ServiceNow
-              {remote.current && snCreds && (
+              {remoteShown && snCreds && (
                 <>
                   {" "}
-                  (<Anchor href={snRecordLink(snCreds.instanceUrl, "sys_remote_update_set", remote.current.id)} target="_blank">
+                  (<Anchor href={snRecordLink(snCreds.instanceUrl, "sys_remote_update_set", remoteShown.id)} target="_blank">
                     open it
                   </Anchor>
                   )
@@ -187,10 +188,10 @@ export default function StepInstallApp() {
         {error && (
           <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Install failed">
             {error}
-            {remote.current && " Your progress is kept — Resume install picks up from the stage that failed."}
+            {remoteShown && " Your progress is kept — Resume install picks up from the stage that failed."}
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </>
   );
 }

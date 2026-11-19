@@ -1,9 +1,9 @@
-import EntityLinkStep from "../components/EntityLinkStep";
+import EntityLinkSection from "../components/EntityLinkSection";
 import WebhookProvisionPanel from "../components/WebhookProvisionPanel";
 import { getAllTableRows, getTablePage, updateRecord } from "../api/servicenow";
 import { getAllServices } from "../api/pagerduty";
 import { SN_FIELDS, SN_TABLES } from "../config/schema";
-import { currentPdCreds, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 import type { SNCi } from "../types/servicenow";
 
 const SEARCH_LIMIT = 25;
@@ -13,13 +13,14 @@ const SEARCH_LIMIT = 25;
 // status check, not a CI-class/type restriction).
 const ELIGIBLE_CI_QUERY = "operational_status!=6";
 
-export default function Step8LinkServices() {
-  const pdServices = useWizardStore((s) => s.pdServices);
-  const setPdServices = useWizardStore((s) => s.setPdServices);
-  const logChange = useWizardStore((s) => s.logChange);
+export default function LinkServicesSection() {
+  const pdServices = useAppStore((s) => s.pdServices);
+  const setPdServices = useAppStore((s) => s.setPdServices);
+  const logChange = useAppStore((s) => s.logChange);
 
   return (
-    <EntityLinkStep
+    <EntityLinkSection
+      tabView="services"
       title="Link existing PagerDuty services into ServiceNow"
       description={
         "Sets each Configuration Item's PagerDuty service field (\"Configuration Items and Assignment Groups map to " +

@@ -3,7 +3,7 @@ import { Alert, Button, Group, Modal, Select, Stack, Text, Textarea, TextInput }
 import { useForm } from "@mantine/form";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { PDApiError, createService, getAllEscalationPolicies } from "../api/pagerduty";
-import { currentPdCreds, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, useAppStore } from "../store/appStore";
 import type { PDService } from "../types/pagerduty";
 
 interface CreatePdServiceModalProps {
@@ -13,12 +13,14 @@ interface CreatePdServiceModalProps {
 }
 
 export default function CreatePdServiceModal({ opened, onClose, onCreated }: CreatePdServiceModalProps) {
-  const pdServices = useWizardStore((s) => s.pdServices);
-  const setPdServices = useWizardStore((s) => s.setPdServices);
+  const pdServices = useAppStore((s) => s.pdServices);
+  const setPdServices = useAppStore((s) => s.setPdServices);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [policies, setPolicies] = useState<{ id: string; name: string }[]>([]);
-  const [loadingPolicies, setLoadingPolicies] = useState(false);
+  // null until the policies have been fetched (the first time the modal opens).
+  const [fetched, setFetched] = useState<{ id: string; name: string }[] | null>(null);
+  const policies = fetched ?? [];
+  const loadingPolicies = opened && fetched === null;
 
   const form = useForm({
     initialValues: { name: "", description: "", escalationPolicyId: "" },
@@ -29,13 +31,11 @@ export default function CreatePdServiceModal({ opened, onClose, onCreated }: Cre
   });
 
   useEffect(() => {
-    if (!opened) return;
-    setLoadingPolicies(true);
+    if (!opened || fetched !== null) return;
     getAllEscalationPolicies(currentPdCreds())
-      .then(setPolicies)
-      .catch(() => setPolicies([]))
-      .finally(() => setLoadingPolicies(false));
-  }, [opened]);
+      .then(setFetched)
+      .catch(() => setFetched([]));
+  }, [opened, fetched]);
 
   const handleSubmit = async () => {
     const result = form.validate();

@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Group, Stack, Table, Text } from "@mantine/core";
 import { IconAlertTriangle, IconCheck } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
 import { ACCESS_FLAG_LABELS, applyTableAccess, getTableAccess, type TableAccessState } from "../api/prepare";
 import { SNApiError } from "../api/servicenow";
 import { flushServiceNowCache } from "../api/cacheFlush";
-import { currentAdminId, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentAdminId, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 
-export default function StepTableAccess() {
-  const logChange = useWizardStore((s) => s.logChange);
+export default function TableAccessCard() {
+  const logChange = useAppStore((s) => s.logChange);
+  const refreshReadiness = useAppStore((s) => s.refreshReadiness);
   const [states, setStates] = useState<TableAccessState[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [fixing, setFixing] = useState(false);
@@ -64,6 +64,7 @@ export default function StepTableAccess() {
         });
       }
       await load();
+      void refreshReadiness();
     } catch (e) {
       setError(e instanceof SNApiError ? e.message : e instanceof Error ? e.message : "Couldn't update table access");
     } finally {
@@ -73,11 +74,8 @@ export default function StepTableAccess() {
   };
 
   return (
-    <StepShell
-      title="Table access for the PagerDuty app"
-      description="The app runs in its own scope but reads and writes these global tables, so their Application Access settings have to allow it (step 1.1 of PagerDuty's guide)."
-    >
-      <Stack maw={640}>
+    <>
+      <Stack>
         {loading && !states && <Text c="dimmed">Reading current settings…</Text>}
 
         {states && (
@@ -131,6 +129,6 @@ export default function StepTableAccess() {
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </>
   );
 }

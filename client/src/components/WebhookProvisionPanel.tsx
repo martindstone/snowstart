@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Group, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconCheck } from "@tabler/icons-react";
 import { findCisNeedingWebhook, provisionCiWebhooks, type CiNeedingWebhook } from "../api/webhookProvisioning";
-import { currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 
 /**
  * Above the CI link table: provisions PagerDuty webhooks for linked CIs using the app's own "Provision Webhook into
@@ -15,13 +15,11 @@ interface Props {
   appliedCount: number;
   /** True while a batch of links is being applied. */
   applying: boolean;
-  /** Keeps the step's Next button disabled while provisioning is in flight. */
-  setBlocking: (blocking: boolean) => void;
 }
 
-export default function WebhookProvisionPanel({ appliedCount, applying, setBlocking }: Props) {
-  const snAdminUser = useWizardStore((s) => s.snAdminUser);
-  const logChange = useWizardStore((s) => s.logChange);
+export default function WebhookProvisionPanel({ appliedCount, applying }: Props) {
+  const snAdminUser = useAppStore((s) => s.snAdminUser);
+  const logChange = useAppStore((s) => s.logChange);
   const [pending, setPending] = useState<CiNeedingWebhook[] | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -30,9 +28,10 @@ export default function WebhookProvisionPanel({ appliedCount, applying, setBlock
   const [doneCount, setDoneCount] = useState(0);
 
   const refresh = useCallback(async () => {
-    setCheckError(null);
     try {
-      setPending(await findCisNeedingWebhook(currentSnCreds()));
+      const list = await findCisNeedingWebhook(currentSnCreds());
+      setCheckError(null);
+      setPending(list);
     } catch (e) {
       setCheckError(e instanceof Error ? e.message : "Couldn't check for CIs without webhooks");
     }
@@ -84,8 +83,21 @@ export default function WebhookProvisionPanel({ appliedCount, applying, setBlock
 
   // Check on mount, and again once a batch of links has finished applying (not mid-batch, which would race).
   useEffect(() => {
-    if (!applying) void refresh();
-  }, [refresh, applying, appliedCount]);
+    if (applying) return;
+    let cancelled = false;
+    findCisNeedingWebhook(currentSnCreds())
+      .then((list) => {
+        if (cancelled) return;
+        setCheckError(null);
+        setPending(list);
+      })
+      .catch((e) => {
+        if (!cancelled) setCheckError(e instanceof Error ? e.message : "Couldn't check for CIs without webhooks");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applying, appliedCount]);
 
   // When a batch of links finishes, provision the webhooks for the CIs it left without one.
   const handled = useRef(0);
@@ -99,12 +111,6 @@ export default function WebhookProvisionPanel({ appliedCount, applying, setBlock
       })
       .catch((e) => setCheckError(e instanceof Error ? e.message : "Couldn't check for CIs without webhooks"));
   }, [applying, appliedCount, provision]);
-
-  // Keep the step's Next button disabled while the scheduler-backed job is running.
-  useEffect(() => {
-    setBlocking(running);
-    return () => setBlocking(false);
-  }, [running, setBlocking]);
 
   if (checkError) {
     return (

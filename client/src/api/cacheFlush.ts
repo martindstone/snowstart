@@ -8,7 +8,7 @@ import type { SNCredentials } from "../types/servicenow";
  * sysauto_script, with "refused due to the api's cross-scope access policy".
  *
  * There's no REST endpoint for it, so a one-shot scheduled script runs it (as the connected admin)
- * and logs a unique marker the wizard waits for.
+ * and logs a unique marker SnowStart waits for.
  */
 const POLL_MS = 5000;
 const TIMEOUT_MS = 3 * 60 * 1000;

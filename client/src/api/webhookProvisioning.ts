@@ -7,10 +7,10 @@ import type { SNCredentials } from "../types/servicenow";
  * "Provision Webhook into PagerDuty" UI action — PagerDuty.searchWebhookByServiceId, then updateWebhookId when a
  * subscription already exists or provisionWebhook when it doesn't. Doing it through the app means the subscription
  * gets exactly the events, URL and Authorization header the app itself would give it, using the integration
- * credentials stored in the app's properties (the wizard never needs to know the password).
+ * credentials stored in the app's properties (SnowStart never needs to know the password).
  *
  * There is no REST endpoint for running server code, so — as with the cache flush and the password hash — a
- * one-shot scheduled script runs it as the connected admin and logs the outcome for the wizard to read.
+ * one-shot scheduled script runs it as the connected admin and logs the outcome for SnowStart to read.
  */
 
 const POLL_MS = 5000;

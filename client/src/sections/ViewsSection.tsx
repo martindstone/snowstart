@@ -1,19 +1,48 @@
-import { useState } from "react";
-import { Alert, Button, Checkbox, Group, List, Stack, Text } from "@mantine/core";
+import { useEffect, useState } from "react";
+import { Alert, Badge, Button, Checkbox, Group, List, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconCheck } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
-import { applyViewPlan, COMMON_CI_CLASSES, VIEW_PLAN, type LayoutResult } from "../api/views";
+import Section from "../components/Section";
+import { applyViewPlan, checkViewStatus, COMMON_CI_CLASSES, VIEW_PLAN, type LayoutResult, type ViewStatus } from "../api/views";
 import { SNApiError } from "../api/servicenow";
-import { currentSnCreds, useWizardStore } from "../store/wizardStore";
+import { currentSnCreds, useAppStore } from "../store/appStore";
 
-export default function StepViews() {
-  const logChange = useWizardStore((s) => s.logChange);
+function EntryBadge({ entry }: { entry: ViewStatus | undefined }) {
+  if (!entry) return null;
+  if (entry.fields.length === 0) return <Badge color="gray" variant="light">not in this app version</Badge>;
+  const n = entry.missing.reduce((sum, m) => sum + m.fields.length, 0);
+  return n === 0 ? (
+    <Badge color="green" variant="light" leftSection={<IconCheck size={10} />}>
+      complete
+    </Badge>
+  ) : (
+    <Badge color="orange" variant="light">
+      {n} field{n === 1 ? "" : "s"} missing
+    </Badge>
+  );
+}
+
+export default function ViewsSection() {
+  const logChange = useAppStore((s) => s.logChange);
+  const refreshConfigStatus = useAppStore((s) => s.refreshConfigStatus);
+  const [status, setStatus] = useState<ViewStatus[] | null>(null);
   const [enabled, setEnabled] = useState<Record<string, boolean>>(Object.fromEntries(VIEW_PLAN.map((e) => [e.key, true])));
   const [ciClasses, setCiClasses] = useState<string[]>(["cmdb_ci", "cmdb_ci_appl"]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [lines, setLines] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const recheck = async (classes?: string[]) => {
+    try {
+      setStatus(await checkViewStatus(currentSnCreds(), classes ? { cis: classes } : {}));
+    } catch {
+      setStatus(null); // the status is a convenience; applying still works without it
+    }
+  };
+  useEffect(() => {
+    void recheck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const run = async () => {
     setRunning(true);
@@ -44,6 +73,8 @@ export default function StepViews() {
       }
       setLines(out);
       setDone(true);
+      await recheck(ciClasses);
+      void refreshConfigStatus();
     } catch (e) {
       setError(e instanceof SNApiError ? e.message : e instanceof Error ? e.message : "Couldn't update the views");
     } finally {
@@ -52,7 +83,7 @@ export default function StepViews() {
   };
 
   return (
-    <StepShell
+    <Section
       title="Add PagerDuty fields to views"
       description="Puts the PagerDuty fields on the Default view list columns and forms so they're visible (step 1.3 of PagerDuty's guide). Fields already on a layout are left alone."
     >
@@ -60,7 +91,12 @@ export default function StepViews() {
         {VIEW_PLAN.map((entry) => (
           <Checkbox
             key={entry.key}
-            label={entry.label}
+            label={
+              <Group gap="xs">
+                {entry.label}
+                <EntryBadge entry={status?.find((x) => x.key === entry.key)} />
+              </Group>
+            }
             description={entry.fields.map((f) => f.replace("x_pd_integration_", "")).join(", ")}
             checked={enabled[entry.key]}
             onChange={(e) => setEnabled((s) => ({ ...s, [entry.key]: e.currentTarget.checked }))}
@@ -99,6 +135,6 @@ export default function StepViews() {
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </Section>
   );
 }

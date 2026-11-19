@@ -1,17 +1,18 @@
-import EntityLinkStep from "../components/EntityLinkStep";
+import EntityLinkSection from "../components/EntityLinkSection";
 import { getAllTableRows, getTablePage, updateRecord } from "../api/servicenow";
 import { getAllEscalationPolicies } from "../api/pagerduty";
 import { SN_FIELDS, SN_TABLES } from "../config/schema";
-import { currentPdCreds, currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentPdCreds, currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 import type { SNGroup } from "../types/servicenow";
 
 const SEARCH_LIMIT = 25;
 
-export default function Step9LinkEscalationPolicies() {
-  const logChange = useWizardStore((s) => s.logChange);
+export default function LinkEscalationsSection() {
+  const logChange = useAppStore((s) => s.logChange);
 
   return (
-    <EntityLinkStep
+    <EntityLinkSection
+      tabView="escalations"
       title="Link existing PagerDuty escalation policies into ServiceNow"
       description={
         'Sets each Assignment Group\'s default PagerDuty escalation policy ("Configuration Items and Assignment ' +

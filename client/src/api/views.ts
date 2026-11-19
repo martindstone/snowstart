@@ -160,3 +160,60 @@ export async function applyViewPlan(
   for (const table of formTables) results.push(await addFormFields(creds, table, fields));
   return { fields, results };
 }
+
+export interface ViewStatus {
+  key: string;
+  label: string;
+  /** Fields of this plan entry the installed app actually defines. */
+  fields: string[];
+  /** Layouts that lack some of those fields. Empty means the entry is complete. */
+  missing: { table: string; layout: "list" | "form"; fields: string[] }[];
+}
+
+/**
+ * Read-only counterpart of applyViewPlan: which layouts are still missing which of the app's fields. A layout with no
+ * layout of its own (it inherits its parent's) counts as complete.
+ */
+export async function checkViewStatus(creds: SNCredentials, formTablesByKey: Record<string, string[]> = {}): Promise<ViewStatus[]> {
+  const out: ViewStatus[] = [];
+  for (const entry of VIEW_PLAN) {
+    const fields = await existingFields(creds, entry.fieldTable, entry.fields);
+    const missing: ViewStatus["missing"] = [];
+    if (fields.length > 0) {
+      const listTable = entry.layoutTables[0];
+      const lists = await getTablePage<{ sys_id: string }>(creds, "sys_ui_list", {
+        sysparm_query: `name=${listTable}^view=${DEFAULT_VIEW}^relationshipISEMPTY^sys_userISEMPTY^parentISEMPTY`,
+        sysparm_fields: "sys_id",
+        sysparm_limit: 1,
+      });
+      if (lists[0]) {
+        const columns = await getTablePage<{ element: string }>(creds, "sys_ui_list_element", {
+          sysparm_query: `list_id=${lists[0].sys_id}`,
+          sysparm_fields: "element",
+          sysparm_limit: 500,
+        });
+        const have = new Set(columns.map((c) => c.element));
+        const lacking = fields.filter((f) => !have.has(f));
+        if (lacking.length) missing.push({ table: listTable, layout: "list", fields: lacking });
+      }
+      for (const table of formTablesByKey[entry.key] ?? entry.layoutTables) {
+        const sections = await getTablePage<{ sys_id: string }>(creds, "sys_ui_section", {
+          sysparm_query: `name=${table}^view=${DEFAULT_VIEW}^captionISEMPTY`,
+          sysparm_fields: "sys_id",
+          sysparm_limit: 1,
+        });
+        if (!sections[0]) continue;
+        const elements = await getTablePage<{ element: string }>(creds, "sys_ui_element", {
+          sysparm_query: `sys_ui_section=${sections[0].sys_id}`,
+          sysparm_fields: "element",
+          sysparm_limit: 500,
+        });
+        const have = new Set(elements.map((e) => e.element));
+        const lacking = fields.filter((f) => !have.has(f));
+        if (lacking.length) missing.push({ table, layout: "form", fields: lacking });
+      }
+    }
+    out.push({ key: entry.key, label: entry.label, fields, missing });
+  }
+  return out;
+}

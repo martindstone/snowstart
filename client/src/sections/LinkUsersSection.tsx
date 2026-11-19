@@ -1,46 +1,31 @@
 import { useMemo, useState } from "react";
 import { Alert, Badge, Button, Checkbox, Group, ScrollArea, Stack, Table, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import StepShell from "../components/StepShell";
+import Section from "../components/Section";
 import { SNApiError, createRecord, updateRecord } from "../api/servicenow";
 import { SN_FIELDS, SN_TABLES } from "../config/schema";
-import { currentSnCreds, snRecordLink, useWizardStore } from "../store/wizardStore";
+import { currentSnCreds, snRecordLink, useAppStore } from "../store/appStore";
 import { splitName } from "../utils/names";
 import type { SNUser } from "../types/servicenow";
-import type { UserMatch } from "../types/wizard";
+import { kindOf, type UserLinkKind } from "../utils/userLinks";
 
 type RowStatus = "idle" | "linking" | "error";
 
-/**
- * What a PagerDuty user's row needs:
- *  - create:   no ServiceNow user with that email — create one carrying the PagerDuty id
- *  - link:     a ServiceNow user matches by email but doesn't hold the PagerDuty id yet — set it
- *  - linked:   the ServiceNow user already holds this PagerDuty user's id
- *  - conflict: the ServiceNow user holds a *different* PagerDuty id — never overwritten automatically
- */
-type Kind = "create" | "link" | "linked" | "conflict";
+type Kind = UserLinkKind;
 
-function kindOf(m: UserMatch): Kind {
-  if (!m.snUser) return "create";
-  const stored = m.snUser.x_pd_integration_pagerduty_id ?? "";
-  if (!stored) return "link";
-  return stored === m.pdUser?.id ? "linked" : "conflict";
-}
-
-// Matched-by-email users that just need the PagerDuty id stored come first: they're what people link most.
 const KIND_ORDER: Record<Kind, number> = { link: 0, create: 1, conflict: 2, linked: 3 };
 const actionable = (k: Kind) => k === "create" || k === "link";
 
-export default function Step7LinkUsers() {
-  const matches = useWizardStore((s) => s.matches);
-  const setDirectoryData = useWizardStore((s) => s.setDirectoryData);
-  const snUsers = useWizardStore((s) => s.snUsers);
-  const pdUsers = useWizardStore((s) => s.pdUsers);
-  const logChange = useWizardStore((s) => s.logChange);
-  const loadDirectory = useWizardStore((s) => s.loadDirectory);
-  const directoryStatus = useWizardStore((s) => s.directoryStatus);
-  const directoryError = useWizardStore((s) => s.directoryError);
-  const defaultPdUserId = useWizardStore((s) => s.defaultPdUserId);
+export default function LinkUsersSection() {
+  const matches = useAppStore((s) => s.matches);
+  const setDirectoryData = useAppStore((s) => s.setDirectoryData);
+  const snUsers = useAppStore((s) => s.snUsers);
+  const pdUsers = useAppStore((s) => s.pdUsers);
+  const logChange = useAppStore((s) => s.logChange);
+  const loadDirectory = useAppStore((s) => s.loadDirectory);
+  const directoryStatus = useAppStore((s) => s.directoryStatus);
+  const directoryError = useAppStore((s) => s.directoryError);
+  const defaultPdUserId = useAppStore((s) => s.defaultPdUserId);
 
   // Every PagerDuty user gets a row except the default user, which belongs to the integration user and is linked
   // in Step 6 (the directory snapshot can predate that, so it's excluded here rather than trusted to be current).
@@ -175,10 +160,9 @@ export default function Step7LinkUsers() {
   };
 
   return (
-    <StepShell
+    <Section
       title="Link PagerDuty users to ServiceNow"
       description="Users are pulled from both systems and matched by email. Link a matched ServiceNow user by storing its PagerDuty ID, or create a ServiceNow user for a PagerDuty user that has none. Skipping is fine."
-      nextDisabled={pendingCount > 0 || loadingUsers}
     >
       <Stack>
         <Group>
@@ -294,6 +278,6 @@ export default function Step7LinkUsers() {
           </Alert>
         )}
       </Stack>
-    </StepShell>
+    </Section>
   );
 }
